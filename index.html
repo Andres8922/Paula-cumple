@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Para Paula ♥</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Georgia', 'Times New Roman', serif; overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
+  input, button { font-family: inherit; }
+  button { cursor: pointer; }
+
+  /* ── Animated background ── */
+  #bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+  #bg .gradient {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #FBF5F3 0%, #F2DAE0 20%, #EDE0D4 40%, #E8D0E4 60%, #F5E6E8 80%, #FBF5F3 100%);
+    background-size: 300% 300%;
+    animation: bgShift 25s ease infinite;
+  }
+  @keyframes bgShift {
+    0%   { background-position: 0% 50%; }
+    25%  { background-position: 100% 25%; }
+    50%  { background-position: 50% 100%; }
+    75%  { background-position: 0% 75%; }
+    100% { background-position: 0% 50%; }
+  }
+  .bokeh {
+    position: absolute; border-radius: 50%; filter: blur(30px);
+    animation: drift var(--dur) ease-in-out var(--del) infinite;
+  }
+  @keyframes drift {
+    0%   { transform: translate(0,0) scale(1); }
+    25%  { transform: translate(30px,-40px) scale(1.1); }
+    50%  { transform: translate(-20px,20px) scale(0.95); }
+    75%  { transform: translate(10px,-10px) scale(1.05); }
+    100% { transform: translate(0,0) scale(1); }
+  }
+
+  /* ── Burst animations ── */
+  #burst { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
+  @keyframes burstUp {
+    0%   { transform: translateY(100vh) rotate(0deg) scale(.5); opacity: 0; }
+    10%  { opacity: 1; }
+    85%  { opacity: .8; }
+    100% { transform: translateY(-10vh) rotate(360deg) scale(1); opacity: 0; }
+  }
+  @keyframes burstDown {
+    0%   { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* ── Password screen ── */
+  #password-screen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 24px; position: relative; z-index: 1;
+  }
+  .pw-card {
+    position: relative; z-index: 1;
+    background: rgba(255,255,255,.75); backdrop-filter: blur(16px);
+    border-radius: 20px; padding: 48px 36px; max-width: 340px; width: 100%;
+    text-align: center; box-shadow: 0 8px 32px rgba(194,112,128,.12);
+  }
+  @keyframes shakeAnim {
+    0%,100% { transform: translateX(0); }
+    20%,60% { transform: translateX(-8px); }
+    40%,80% { transform: translateX(8px); }
+  }
+  .pw-card.shake { animation: shakeAnim .5s ease; }
+  .pw-card h1 { font-size: 22px; font-weight: 600; color: #3A2428; margin-bottom: 8px; }
+  .pw-card .sub { color: #8A6A70; font-size: 14px; margin-bottom: 32px; line-height: 1.5; }
+  #code-input {
+    width: 100%; padding: 14px 16px; font-size: 24px; text-align: center;
+    letter-spacing: 12px; border: 2px solid #E8D5D8; border-radius: 12px;
+    outline: none; background: #FDFAFA; color: #3A2428; transition: border-color .2s;
+  }
+  #code-input.error { border-color: #C27080; background: #FFF5F5; }
+  .pw-error { color: #C27080; font-size: 13px; margin-top: 10px; display: none; }
+  .pw-error.show { display: block; }
+  .btn-primary {
+    margin-top: 24px; width: 100%; padding: 14px;
+    background: linear-gradient(135deg, #C27080, #D4A853);
+    color: white; border: none; border-radius: 12px;
+    font-size: 16px; font-weight: 600; letter-spacing: .5px;
+    transition: opacity .2s;
+  }
+  .btn-primary:hover { opacity: .9; }
+
+  /* ── Main app ── */
+  #main-app {
+    display: none; min-height: 100vh; position: relative;
+    flex-direction: column;
+  }
+  #main-app.active { display: flex; }
+  .header {
+    position: relative; z-index: 1; text-align: center;
+    padding: 18px 20px 10px;
+    border-bottom: 1px solid rgba(194,112,128,.1);
+    background: rgba(255,255,255,.5); backdrop-filter: blur(16px);
+  }
+  .header p { font-size: 14px; color: #C27080; font-weight: 600; letter-spacing: 1px; }
+  .content { flex: 1; overflow-y: auto; padding-bottom: 80px; position: relative; z-index: 1; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Bottom nav ── */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
+    background: rgba(255,255,255,.92); backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(194,112,128,.1);
+    display: flex; padding: 8px 12px calc(env(safe-area-inset-bottom, 8px) + 8px);
+  }
+  .nav-btn {
+    flex: 1; padding: 8px 4px; background: none; border: none;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    transition: all .2s;
+  }
+  .nav-btn .icon { font-size: 22px; filter: grayscale(.6); transition: filter .2s; }
+  .nav-btn.active .icon { filter: none; }
+  .nav-btn .label {
+    font-size: 10px; color: #B8949A; font-weight: 400;
+    font-family: system-ui, sans-serif; transition: all .2s;
+  }
+  .nav-btn.active .label { color: #C27080; font-weight: 600; }
+
+  /* ── Greeting tab ── */
+  #tab-greeting {
+    text-align: center; padding: 40px 28px 28px;
+    opacity: 0; transform: translateY(20px);
+    transition: all .8s ease-out;
+  }
+  #tab-greeting.entered { opacity: 1; transform: translateY(0); }
+  .greeting-divider {
+    width: 60px; height: 2px; margin: 20px auto;
+    background: linear-gradient(90deg, #C27080, #D4A853); border-radius: 2px;
+  }
+  .greeting-text {
+    font-size: 17px; color: #5A3A40; line-height: 1.8;
+    max-width: 320px; margin: 0 auto; font-style: italic;
+  }
+
+  /* ── Gift tab ── */
+  #tab-gift { padding: 28px 20px; }
+  @keyframes counterIn { 0% { transform: scale(.3) rotate(-10deg); opacity: 0; } 60% { transform: scale(1.05) rotate(2deg); } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+  @keyframes slideUp { 0% { transform: translateY(30px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+  @keyframes fadeInItem { 0% { transform: translateX(-20px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+  .counter-wrap { text-align: center; margin-bottom: 28px; opacity: 0; }
+  .counter-wrap.entered { animation: counterIn .8s cubic-bezier(.34,1.56,.64,1) forwards; }
+  .counter-ring {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 160px; height: 160px; border-radius: 50%; padding: 6px;
+  }
+  .counter-inner {
+    width: 100%; height: 100%; border-radius: 50%; background: white;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .counter-inner.pulse { animation: pulse .6s ease; }
+  .counter-val { font-size: 42px; font-weight: 700; color: #3A2428; line-height: 1; }
+  .counter-val.low { color: #C27080; }
+  .btn-add-wrap { opacity: 0; }
+  .btn-add-wrap.entered { animation: slideUp .6s ease-out .4s both; }
+  .btn-add {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, #C27080, #D4A853);
+    color: white; border: none; border-radius: 14px;
+    font-size: 15px; font-weight: 600; margin-bottom: 24px;
+  }
+  .form-card {
+    background: white; border-radius: 16px; padding: 20px;
+    margin-bottom: 24px; box-shadow: 0 4px 16px rgba(194,112,128,.1);
+    display: none;
+  }
+  .form-card.show { display: block; animation: slideUp .4s ease-out; }
+  .form-card h4 { font-size: 14px; font-weight: 600; color: #3A2428; margin-bottom: 14px; }
+  .cat-row { display: flex; gap: 8px; margin-bottom: 16px; justify-content: center; }
+  .cat-btn {
+    flex: 1; padding: 10px 4px; border-radius: 12px;
+    border: 2px solid #F0E0E2; background: white;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transition: all .2s;
+  }
+  .cat-btn.sel { border-color: #C27080; background: #FFF0F2; }
+  .cat-btn .ci { font-size: 22px; }
+  .cat-btn .cl { font-size: 10px; color: #5A3A40; }
+  .amount-wrap { position: relative; margin-bottom: 12px; }
+  .amount-input {
+    width: 100%; padding: 12px 36px 12px 16px; font-size: 18px;
+    border: 2px solid #E8D5D8; border-radius: 12px; outline: none; color: #3A2428;
+  }
+  .amount-wrap .euro {
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    color: #8A6A70; font-size: 18px; font-weight: 600;
+  }
+  .desc-input {
+    width: 100%; padding: 12px 16px; font-size: 14px;
+    border: 2px solid #E8D5D8; border-radius: 12px; outline: none;
+    color: #3A2428; margin-bottom: 16px;
+  }
+  .form-btns { display: flex; gap: 10px; }
+  .btn-cancel {
+    flex: 1; padding: 12px; background: #F5E6E8; color: #5A3A40;
+    border: none; border-radius: 12px; font-size: 14px;
+  }
+  .btn-confirm {
+    flex: 1; padding: 12px; color: white; border: none; border-radius: 12px;
+    font-size: 14px; font-weight: 600;
+    background: linear-gradient(135deg, #C27080, #D4A853);
+  }
+  .btn-confirm:disabled { background: #E8D5D8; cursor: not-allowed; }
+  .purchase-item {
+    display: flex; align-items: center; background: white;
+    border-radius: 14px; padding: 12px 16px; margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(194,112,128,.06);
+  }
+  .purchase-item .pi-icon { font-size: 28px; margin-right: 14px; }
+  .purchase-item .pi-info { flex: 1; min-width: 0; }
+  .purchase-item .pi-name { font-size: 14px; font-weight: 600; color: #3A2428; }
+  .purchase-item .pi-date { font-size: 11px; color: #B8949A; margin-top: 2px; }
+  .purchase-item .pi-amount { font-size: 17px; font-weight: 700; color: #C27080; margin-right: 10px; }
+  .purchase-item .pi-del {
+    background: none; border: none; font-size: 16px; color: #CDB0B4; padding: 4px; line-height: 1;
+  }
+
+  /* ── Timeline tab ── */
+  #tab-timeline { padding: 28px 20px; }
+  @keyframes titleDrop { 0% { transform: translateY(-20px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+  @keyframes cardReveal { 0% { transform: perspective(600px) rotateY(8deg) scale(.9); opacity: 0; } 100% { transform: perspective(600px) rotateY(0) scale(1); opacity: 1; } }
+  @keyframes sliderFade { 0% { transform: translateY(20px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+  .tl-title { text-align: center; margin-bottom: 24px; opacity: 0; }
+  .tl-title.entered { animation: titleDrop .6s ease-out forwards; }
+  .tl-title h3 { font-size: 22px; color: #3A2428; margin-bottom: 4px; }
+  .tl-title p { font-size: 13px; color: #8A6A70; }
+  .photo-card {
+    background: white; border-radius: 20px; overflow: hidden;
+    box-shadow: 0 6px 24px rgba(194,112,128,.1); margin-bottom: 28px;
+    opacity: 0; transition: transform .25s ease, opacity .25s ease;
+  }
+  .photo-card.entered { animation: cardReveal .8s cubic-bezier(.34,1.56,.64,1) .2s both; }
+  .photo-card.transitioning { transform: scale(.95); opacity: .4; }
+  .photo-area {
+    width: 100%; aspect-ratio: 3/4;
+    background: linear-gradient(145deg, #F5E6E8, #EDE0D4);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .photo-area img {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  }
+  .age-badge {
+    position: relative; z-index: 1; text-align: center;
+    background: rgba(255,255,255,.7); border-radius: 16px; padding: 20px 32px;
+  }
+  .age-badge .num { font-size: 56px; font-weight: 700; color: #C27080; line-height: 1; }
+  .age-badge .lbl { font-size: 14px; color: #5A3A40; margin-top: 4px; }
+  .slider-wrap { padding: 0 8px; opacity: 0; }
+  .slider-wrap.entered { animation: sliderFade .6s ease-out .5s both; }
+  .slider-row { display: flex; align-items: center; gap: 12px; }
+  .slider-row .emoji { font-size: 28px; }
+  .slider-track { flex: 1; }
+  input[type="range"].age-slider {
+    -webkit-appearance: none; appearance: none; width: 100%;
+    height: 6px; border-radius: 3px;
+    background: linear-gradient(90deg, #C27080, #D4A853); outline: none;
+  }
+  input[type="range"].age-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: white; box-shadow: 0 2px 8px rgba(194,112,128,.3);
+    border: 3px solid #C27080; cursor: pointer;
+  }
+  input[type="range"].age-slider::-moz-range-thumb {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: white; box-shadow: 0 2px 8px rgba(194,112,128,.3);
+    border: 3px solid #C27080; cursor: pointer;
+  }
+  .age-dots {
+    display: flex; justify-content: space-between; margin-top: 8px; padding: 0 18px;
+  }
+  .age-dot {
+    background: none; border: none; font-size: 11px; color: #B8949A;
+    font-weight: 400; padding: 4px 6px; font-family: inherit;
+  }
+  .age-dot.active { color: #C27080; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- ── Background ── -->
+<div id="bg">
+  <div class="gradient"></div>
+</div>
+
+<!-- ── Burst container ── -->
+<div id="burst"></div>
+
+<!-- ── Password Screen ── -->
+<div id="password-screen">
+  <div class="pw-card" id="pw-card">
+    <div style="font-size:40px;margin-bottom:8px">🔒</div>
+    <h1>Un momento especial</h1>
+    <p class="sub">Introduce el código secreto para descubrir tu sorpresa</p>
+    <input type="password" inputmode="numeric" maxlength="6" id="code-input" placeholder="••••••">
+    <p class="pw-error" id="pw-error">Código incorrecto, inténtalo de nuevo</p>
+    <button class="btn-primary" id="btn-enter">Descubrir ✨</button>
+  </div>
+</div>
+
+<!-- ── Main App ── -->
+<div id="main-app">
+  <div class="header"><p>♥ Para Paula ♥</p></div>
+
+  <div class="content">
+    <!-- Greeting -->
+    <div class="tab-panel active" id="tab-greeting">
+      <div style="font-size:48px;margin-bottom:16px">🎂</div>
+      <h2 style="font-size:28px;font-weight:600;color:#3A2428;margin-bottom:8px;line-height:1.3">Feliz cumpleaños, Paula</h2>
+      <div class="greeting-divider"></div>
+      <p class="greeting-text">Feliz cumpleaños amor mío, gracias por hacerme sentir importante, querido y valorado. Son cosas que quizás parecen pequeñas, pero significan muchísimo para mí.</p>
+      <div style="margin-top:32px;font-size:28px;letter-spacing:8px">💕</div>
+      <p style="margin-top:24px;font-size:13px;color:#B8949A">Con todo mi cariño — Andrés</p>
+    </div>
+
+    <!-- Gift -->
+    <div class="tab-panel" id="tab-gift">
+      <div class="counter-wrap" id="counter-wrap">
+        <p style="font-size:13px;color:#8A6A70;margin-bottom:8px;letter-spacing:.5px">Saldo disponible</p>
+        <div class="counter-ring" id="counter-ring">
+          <div class="counter-inner" id="counter-inner">
+            <span class="counter-val" id="counter-val">100</span>
+            <span style="font-size:16px;color:#8A6A70;margin-top:2px">€</span>
+          </div>
+        </div>
+        <p style="font-size:12px;color:#B8949A;margin-top:10px" id="purchase-count">Aún no has gastado nada 🎉</p>
+      </div>
+
+      <div class="btn-add-wrap" id="btn-add-wrap">
+        <button class="btn-add" id="btn-show-form">+ Añadir compra</button>
+      </div>
+
+      <div class="form-card" id="form-card">
+        <h4>Nueva compra</h4>
+        <div class="cat-row" id="cat-row"></div>
+        <div class="amount-wrap">
+          <input type="number" step="0.01" min="0" class="amount-input" id="amount-input" placeholder="0.00">
+          <span class="euro">€</span>
+        </div>
+        <input type="text" class="desc-input" id="desc-input" placeholder="Descripción (opcional)">
+        <div class="form-btns">
+          <button class="btn-cancel" id="btn-cancel">Cancelar</button>
+          <button class="btn-confirm" id="btn-confirm" disabled>Añadir</button>
+        </div>
+      </div>
+
+      <div id="purchase-list"></div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="tab-panel" id="tab-timeline">
+      <div class="tl-title" id="tl-title">
+        <h3>Recuerdos</h3>
+        <p>Un viaje por tus años</p>
+      </div>
+      <div class="photo-card" id="photo-card">
+        <div class="photo-area">
+          <img id="photo-img" src="fotos/0.jpg" alt="Paula" onerror="this.style.display='none'">
+          <div class="age-badge">
+            <div class="num" id="age-num">0</div>
+            <div class="lbl" id="age-lbl">Recién nacida</div>
+          </div>
+        </div>
+      </div>
+      <div class="slider-wrap" id="slider-wrap">
+        <div class="slider-row">
+          <span class="emoji">👶</span>
+          <div class="slider-track">
+            <input type="range" class="age-slider" id="age-slider" min="0" max="22" value="0">
+          </div>
+          <span class="emoji">👩</span>
+        </div>
+        <div class="age-dots" id="age-dots"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav" id="bottom-nav"></div>
+</div>
+
+<script>
+(function() {
+  const CORRECT_CODE = '100121';
+  const TOTAL = 100;
+  const CATEGORIES = [
+    { id:'general', icon:'🛍️', label:'General' },
+    { id:'ropa', icon:'👗', label:'Ropa' },
+    { id:'maquillaje', icon:'💄', label:'Maquillaje' },
+    { id:'comida', icon:'🍽️', label:'Comida' },
+  ];
+  const THEMES = [
+    { rising:['♥','♡','❤','💕','💗','💖'], rColors:['#C27080','#E8A0AC','#D4A853','#F0C0C8'], cColors:['#C27080','#D4A853','#E8A0AC','#F0C0C8','#A8D8A8','#8CBAD9'] },
+    { rising:['🎁','💰','🛍️','💸','✨','🎀'], rColors:['#D4A853','#C27080','#8CBAD9','#A8D8A8'], cColors:['#D4A853','#E8C44A','#C27080','#F0C0C8','#A8D8A8','#D4A853'] },
+    { rising:['⭐','✨','📸','🌟','💫','🎞️'], rColors:['#D4A853','#8CBAD9','#C27080','#B8A0D0'], cColors:['#D4A853','#8CBAD9','#B8A0D0','#E8A0AC','#A8D8A8','#F0C0C8'] },
+  ];
+  const TABS = [
+    { icon:'💝', label:'Felicitación', panel:'tab-greeting' },
+    { icon:'🎁', label:'Tu regalo', panel:'tab-gift' },
+    { icon:'📸', label:'Recuerdos', panel:'tab-timeline' },
+  ];
+
+  let currentTab = 0;
+  let selectedCat = 'general';
+  let purchases = JSON.parse(localStorage.getItem('paula_purchases') || '[]');
+  let currentAge = 0;
+
+  // ── Bokeh background ──
+  const bgEl = document.getElementById('bg');
+  const bokehColors = ['rgba(194,112,128,','rgba(212,168,83,','rgba(168,140,200,','rgba(200,160,170,','rgba(180,200,220,'];
+  for (let i = 0; i < 14; i++) {
+    const d = document.createElement('div');
+    d.className = 'bokeh';
+    const size = 60 + Math.random() * 200;
+    const op = 0.08 + Math.random() * 0.12;
+    d.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;width:${size}px;height:${size}px;background:radial-gradient(circle,${bokehColors[i%5]}${op}) 0%,${bokehColors[i%5]}0) 70%);--dur:${18+Math.random()*20}s;--del:${Math.random()*-30}s;`;
+    bgEl.appendChild(d);
+  }
+
+  // ── Burst animation ──
+  function triggerBurst(themeIdx) {
+    const el = document.getElementById('burst');
+    el.innerHTML = '';
+    const t = THEMES[themeIdx] || THEMES[0];
+    for (let i = 0; i < 16; i++) {
+      const s = document.createElement('span');
+      s.textContent = t.rising[Math.floor(Math.random()*t.rising.length)];
+      const sz = 14 + Math.random()*18;
+      const dur = 3 + Math.random()*4;
+      const del = Math.random()*2.5;
+      s.style.cssText = `position:absolute;left:${Math.random()*100}%;bottom:0;font-size:${sz}px;color:${t.rColors[i%t.rColors.length]};animation:burstUp ${dur}s ease-out ${del}s forwards;opacity:0;`;
+      el.appendChild(s);
+    }
+    for (let i = 0; i < 30; i++) {
+      const d = document.createElement('div');
+      const sz = 5 + Math.random()*6;
+      const dur = 2.5 + Math.random()*2;
+      const del = Math.random()*2;
+      d.style.cssText = `position:absolute;left:${Math.random()*100}%;top:0;width:${sz}px;height:${sz*1.5}px;background:${t.cColors[i%t.cColors.length]};border-radius:2px;animation:burstDown ${dur}s ease-in ${del}s forwards;transform:rotate(${Math.random()*360}deg);`;
+      el.appendChild(d);
+    }
+    setTimeout(() => { el.innerHTML = ''; }, 6000);
+  }
+
+  // ── Password ──
+  const codeInput = document.getElementById('code-input');
+  const pwCard = document.getElementById('pw-card');
+  const pwError = document.getElementById('pw-error');
+  codeInput.addEventListener('input', () => {
+    codeInput.value = codeInput.value.replace(/\D/g,'');
+    codeInput.classList.remove('error');
+    pwError.classList.remove('show');
+  });
+  function tryLogin() {
+    if (codeInput.value === CORRECT_CODE) {
+      document.getElementById('password-screen').style.display = 'none';
+      document.getElementById('main-app').classList.add('active');
+      triggerBurst(0);
+      setTimeout(() => document.getElementById('tab-greeting').classList.add('entered'), 300);
+    } else {
+      codeInput.classList.add('error');
+      pwError.classList.add('show');
+      pwCard.classList.add('shake');
+      setTimeout(() => pwCard.classList.remove('shake'), 500);
+    }
+  }
+  codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+  document.getElementById('btn-enter').addEventListener('click', tryLogin);
+
+  // ── Bottom nav ──
+  const nav = document.getElementById('bottom-nav');
+  TABS.forEach((t, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'nav-btn' + (i === 0 ? ' active' : '');
+    btn.innerHTML = `<span class="icon">${t.icon}</span><span class="label">${t.label}</span>`;
+    btn.addEventListener('click', () => switchTab(i));
+    nav.appendChild(btn);
+  });
+
+  function switchTab(idx) {
+    if (idx === currentTab) return;
+    currentTab = idx;
+    document.querySelectorAll('.nav-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById(TABS[idx].panel);
+    panel.classList.add('active');
+    triggerBurst(idx);
+
+    if (idx === 1) {
+      setTimeout(() => {
+        document.getElementById('counter-wrap').classList.add('entered');
+        document.getElementById('btn-add-wrap').classList.add('entered');
+        renderPurchases();
+      }, 100);
+    }
+    if (idx === 2) {
+      setTimeout(() => {
+        document.getElementById('tl-title').classList.add('entered');
+        document.getElementById('photo-card').classList.add('entered');
+        document.getElementById('slider-wrap').classList.add('entered');
+      }, 100);
+    }
+  }
+
+  // ── Gift tab ──
+  function savePurchases() { localStorage.setItem('paula_purchases', JSON.stringify(purchases)); }
+
+  function getBalance() { return TOTAL - purchases.reduce((s,p) => s + p.amount, 0); }
+
+  function updateCounter() {
+    const bal = getBalance();
+    const valEl = document.getElementById('counter-val');
+    valEl.textContent = bal % 1 === 0 ? bal : bal.toFixed(2);
+    valEl.classList.toggle('low', bal <= 20);
+    const pct = ((TOTAL - bal) / TOTAL) * 360;
+    document.getElementById('counter-ring').style.background = `conic-gradient(#C27080 ${pct}deg, #F0E0E2 0deg)`;
+    const cnt = purchases.length;
+    document.getElementById('purchase-count').textContent = cnt === 0
+      ? 'Aún no has gastado nada 🎉'
+      : `${cnt} compra${cnt>1?'s':''} realizada${cnt>1?'s':''}`;
+  }
+
+  function renderPurchases() {
+    updateCounter();
+    const list = document.getElementById('purchase-list');
+    list.innerHTML = '';
+    purchases.forEach((p, idx) => {
+      const cat = CATEGORIES.find(c => c.id === p.category) || CATEGORIES[0];
+      const div = document.createElement('div');
+      div.className = 'purchase-item';
+      div.style.animation = `fadeInItem .5s ease-out ${.5+idx*.1}s both`;
+      div.innerHTML = `
+        <span class="pi-icon">${cat.icon}</span>
+        <div class="pi-info">
+          <div class="pi-name">${p.description || cat.label}</div>
+          <div class="pi-date">${p.date}</div>
+        </div>
+        <span class="pi-amount">-${p.amount.toFixed(2)}€</span>
+        <button class="pi-del" data-id="${p.id}">✕</button>
+      `;
+      list.appendChild(div);
+    });
+    list.querySelectorAll('.pi-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        purchases = purchases.filter(p => p.id !== Number(btn.dataset.id));
+        savePurchases();
+        renderPurchases();
+      });
+    });
+  }
+
+  // Category buttons
+  const catRow = document.getElementById('cat-row');
+  CATEGORIES.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn' + (cat.id === selectedCat ? ' sel' : '');
+    btn.innerHTML = `<span class="ci">${cat.icon}</span><span class="cl">${cat.label}</span>`;
+    btn.addEventListener('click', () => {
+      selectedCat = cat.id;
+      catRow.querySelectorAll('.cat-btn').forEach((b,i) => b.classList.toggle('sel', CATEGORIES[i].id === selectedCat));
+    });
+    catRow.appendChild(btn);
+  });
+
+  const formCard = document.getElementById('form-card');
+  const amountInput = document.getElementById('amount-input');
+  const descInput = document.getElementById('desc-input');
+  const btnConfirm = document.getElementById('btn-confirm');
+
+  document.getElementById('btn-show-form').addEventListener('click', () => {
+    document.getElementById('btn-add-wrap').style.display = 'none';
+    formCard.classList.add('show');
+  });
+  document.getElementById('btn-cancel').addEventListener('click', () => {
+    formCard.classList.remove('show');
+    document.getElementById('btn-add-wrap').style.display = '';
+    amountInput.value = '';
+    descInput.value = '';
+  });
+  amountInput.addEventListener('input', () => {
+    const v = parseFloat(amountInput.value);
+    btnConfirm.disabled = !v || v <= 0 || v > getBalance();
+  });
+  btnConfirm.addEventListener('click', () => {
+    const num = parseFloat(amountInput.value);
+    if (!num || num <= 0 || num > getBalance()) return;
+    purchases.unshift({
+      id: Date.now(), amount: num, category: selectedCat,
+      description: descInput.value.trim(),
+      date: new Date().toLocaleDateString('es-ES'),
+    });
+    savePurchases();
+    amountInput.value = '';
+    descInput.value = '';
+    formCard.classList.remove('show');
+    document.getElementById('btn-add-wrap').style.display = '';
+    renderPurchases();
+    const inner = document.getElementById('counter-inner');
+    inner.classList.add('pulse');
+    setTimeout(() => inner.classList.remove('pulse'), 600);
+  });
+
+  // ── Timeline tab ──
+  const ageSlider = document.getElementById('age-slider');
+  const ageDots = document.getElementById('age-dots');
+
+  function setAge(a) {
+    if (a === currentAge) return;
+    const card = document.getElementById('photo-card');
+    card.classList.add('transitioning');
+    setTimeout(() => {
+      currentAge = a;
+      ageSlider.value = a;
+      document.getElementById('age-num').textContent = a;
+      document.getElementById('age-lbl').textContent = a === 0 ? 'Recién nacida' : a === 1 ? '1 añito' : a + ' años';
+      const img = document.getElementById('photo-img');
+      img.style.display = '';
+      img.src = 'fotos/' + a + '.jpg';
+      img.onerror = function() { this.style.display = 'none'; };
+      ageDots.querySelectorAll('.age-dot').forEach(d => d.classList.toggle('active', Number(d.dataset.age) === a));
+      card.classList.remove('transitioning');
+    }, 250);
+  }
+
+  ageSlider.addEventListener('input', () => setAge(parseInt(ageSlider.value)));
+  [0,5,10,15,22].forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = 'age-dot' + (a === 0 ? ' active' : '');
+    btn.textContent = a;
+    btn.dataset.age = a;
+    btn.addEventListener('click', () => setAge(a));
+    ageDots.appendChild(btn);
+  });
+
+  // ── Init ──
+  renderPurchases();
+})();
+</script>
+</body>
+</html>
